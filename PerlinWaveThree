@@ -1,0 +1,91 @@
+#include <Arduino.h>
+#include <SPI.h>
+#include <Wire.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
+#include "perlin.h"
+
+#define SCREEN_WIDTH 128
+#define SCREEN_HEIGHT 64
+#define OLED_RESET     -1
+#define OLED_SDA     7  // Your OLED SDA pin
+#define OLED_SCL     6  // Your OLED SCL pin
+#define SOUND_PIN    2  // ***REPLACE 34 WITH YOUR ACTUAL SOUND SENSOR PIN***
+
+Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
+
+float xOff = 0.0;
+float yOff = 0.0;
+float zOff = 0.0;
+
+int soundBaseline = 0; // Will be calibrated
+int soundThreshold = 500; // You can adjust this later
+
+void setup() {
+  Serial.begin(115200);
+
+  Wire.begin(OLED_SDA, OLED_SCL);
+  if (!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) { // Address may vary
+    Serial.println(F("SSD1306 allocation failed"));
+    for (;;);
+  }
+  display.clearDisplay();
+  display.display();
+
+  // Calibrate soundBaseline (Do this in a quiet environment!)
+  Serial.println("Calibrating sound baseline...");
+  int sum = 0;
+  for (int i = 0; i < 10; i++) {
+    int soundValue = analogRead(SOUND_PIN);
+    sum += soundValue;
+    delay(100);
+  }
+  soundBaseline = sum / 10;
+  Serial.print("Sound baseline: ");
+  Serial.println(soundBaseline);
+  delay(1000);
+
+  randomSeed(millis());
+}
+
+void loop() {
+  int soundValue = analogRead(SOUND_PIN);
+  int soundLevel = soundValue - soundBaseline;
+  if (soundLevel < 0) soundLevel = 0;
+
+  // ***Adjust this sensitivity value!***
+  float zOffChange = map(soundLevel, 0, 4095 - soundBaseline, 0, 1.0); // Start with 1.0 or higher
+
+  zOff += zOffChange;
+  zOff *= 0.95; // Decay (adjust or comment out for testing)
+
+  xOff += 0.05;
+  yOff += 0.02;
+
+  display.clearDisplay();
+
+  float y_prev, y2_prev;
+  for (int x = 0; x < SCREEN_WIDTH; x++) {
+    float y = map(noise3d(xOff + x * 0.02, yOff, zOff), -1, 1, 0, SCREEN_HEIGHT - 1);
+    display.drawPixel(x, y, WHITE);
+
+    float y2 = map(noise3d(xOff + x * 0.02, yOff + 0.1, zOff + 0.1), -1, 1, 0, SCREEN_HEIGHT - 1);
+    display.drawPixel(x, y2, WHITE);
+
+    if (x > 0) {
+      display.drawLine(x - 1, (int)y_prev, x, (int)y, WHITE);
+      display.drawLine(x - 1, (int)y2_prev, x, (int)y2, WHITE);
+    }
+    y_prev = y;
+    y2_prev = y2;
+  }
+
+  display.display();
+  delay(20);
+
+
+  Serial.print("soundValue: ");  Serial.print(soundValue);
+  Serial.print(", soundLevel: "); Serial.print(soundLevel);
+  Serial.print(", zOffChange: "); Serial.print(zOffChange);
+  Serial.print(", zOff: "); Serial.println(zOff);
+}

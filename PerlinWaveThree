@@ -10,7 +10,7 @@
 #define OLED_RESET     -1
 #define OLED_SDA     7  // Your OLED SDA pin
 #define OLED_SCL     6  // Your OLED SCL pin
-#define SOUND_PIN    2  // ***REPLACE 34 WITH YOUR ACTUAL SOUND SENSOR PIN***
+#define SOUND_PIN    4  // ***REPLACE 34 WITH YOUR ACTUAL SOUND SENSOR PIN***
 
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 
